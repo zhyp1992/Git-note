@@ -1,0 +1,154 @@
+Workspace      # 工作区
+Index/Stage    # 暂存区
+Repository     # 本地仓库
+Remote         # 远程仓库
+
+配置=========================================================================================================================
+
+git config --list                             # 查看配置
+git config --global user.name 'John Smith'    # 告诉Git你是谁，本地仓库设置--local > 全局设置--global > 系统设置--system
+git config --global user.email 'john@example.com'
+ssh-keygen -t rsa -C 'john@example.com'       # 生成SSH Key，（测试命令：ssh -T git@github.com）
+
+git config --global core.editor vim           # 选择合适的文本编辑器
+git config --global alias.st status           # 为常用命令添加别名
+git config --global alias.co checkout
+git config --global alias.br branch
+git config --global alias.up rebase
+git config --global alias.ci commit
+
+~/.gitconfig   # 为HTTP协议设置代理
+git config --global http.proxy 'http://127.0.0.1:1080'
+git config --global http.proxy 'socks5://127.0.0.1:1080'
+
+~/.ssh/config  # 为SSH设置代理（windows）
+Host github.com
+   HostName github.com
+   User git
+   # -S socks代理，-H http代理
+   ProxyCommand connect -S 127.0.0.1:1080 %h %p
+
+基本=========================================================================================================================
+
+.gitignore                         # 不被git管理的目录或特定文件后缀（.pyc）
+
+git init <directory>
+git init --bare <directory.git>    # 用于创建共享仓库（服务器远程仓库，不允许用户直接进行git操作），仓库名以.git结尾
+
+git add --all
+git add <file.ext>/<*.ext>
+
+git commit -v                      # commit时显示所有diff信息
+git commit [-a] -m '<message>'     # -a可省去git add --all命令，直接提交工作区自上次commit之后的变化
+git commit --amend [--no-edit]     # 提交并覆盖上一次commit，不要用于已经推送到公共仓库的commit
+
+状态=========================================================================================================================
+//commit可以是commitID、分支名、HEAD/HEAD^^、tag等引用
+
+git status [--short]                      # 查看本地仓库的状态（简短模式，文件状态：A 新增，M 修改，D 删除，R 重命名，?? 未跟踪）
+git diff                                  # 比较工作目录与暂存区中的文件差异
+git diff HEAD/<commit>                    # 比较工作目录与（上次/指定）commit的文件差异
+git diff --cached/--staged                # 比较暂存区和上次commit的文件差异
+git diff <commit> <commit> --stat
+
+git log [--oneline]                       # 显示commit历史，空格键滚动，按q退出，--oneline简洁模式（显示在一行）
+git log -n <limit>
+git log --graph --decorate --oneline      # 显示commit历史，还有一些有用的选项。--graph 绘制图形，--decorate 显示commit分支名和标签
+git log --stat                            # 显示每个commit被更改的文件及增删行数
+git log -p                                # 显示每个commit全部的差异
+git log <file>                            # 查找特定文件的历史
+git log --author="<pattern>"              # 与其他命令参数可组合使用，<pattern>是字符串或正则表达式
+git log --grep="<pattern>"
+git log <since>..<until>                  # since，until两个参数可以是commitID、分支名、HEAD/HEAD^^、tag引用
+git log --oneline master..some-feature    # ..句法，显示在some-feature分支而不在master分支的commit
+
+git show <tag-name>/<commit>              # 查看某个commit信息，
+git show <commit>:<file>                  # 查看某个commit中file文件信息
+git reflog                                # 查看历史命令，reset --hard作死之后的后悔药
+
+操作=========================================================================================================================
+//commit可以是commitID、分支名、HEAD/HEAD^^、tag等引用
+//①使用git checkout <commit>命令后，仓库将处于分离HEAD状态（不要在detached状态开发）
+//②执行reset --hard & clean -df推倒重来之后，工作目录和缓存区会返回到最后一次commit的状态，git status会认为这是一个干净的工作目录
+//③--hard会改变工作目录，--soft不会改变暂存区和工作目录现有状态，--mixed与不加--mixed相同
+
+git branch [-r/-a]                                       # 列出本地仓库（远程仓库/本地+远程）所有分支名称
+git branch -vv                                           # 查看本地分支对应的远程分支
+git branch -d/-D <branch>                                # 删除指定分支。未合并分支不能删除，需使用-D强制删除
+git branch -m <old-branch> <new-branch>                  # 分支命名为branch
+git branch <branch> [--track] [<remote-branch>]          # 创建branch分支并追踪remote-branch（格式：origin/master）
+git branch --set-upstream <branch> <remote-branch>       # 设置已有branch分支追踪remote-branch
+
+git checkout <branch>
+git checkout -b <new-branch> <exist-branch/commit>       # 基于exist-branch或某个commit创建新的分支并切换
+
+*① git checkout <commit>          # 将某个commit加载到工作目录，所有做改动不会被保存到仓库，git checkout master 切回之前状态
+git checkout <commit> <file>       # 将某个commit中的file文件加载到工作目录并加入到缓存区，git checkout HEAD <file> 切回之前状态
+git checkout HEAD/master <file>    # 放弃对某个文件的修改
+git checkout HEAD/master .         # 放弃当前目录下的修改
+
+git checkout <file>                # 将暂存区的文件恢复到工作目录中，暂存区文件依然存在
+git stash save '<name>'            # 暂时保存变化的文件，可临时切换到其他分支工作，稍后切回使用git pop恢复
+git stash [list/clear]/[pop/drop stash@'<name>']
+git reset [<file>/<path>]          # 从缓存区移除（全部/指定）文件，但不改变工作目录
+*② git reset --hard               # 清除所有未提交的更改（从缓存区移除文件，并将工作目录重置到更改前的状态）
+*② git clean -df [<path>]         # 移除（path文件夹下）未跟踪的文件及文件夹
+*③ git reset [--mixed] <commit>   # 撤销某次commit到缓存区，但不改变工作目录
+git reset --hard <commit>          # 不要强制用于公共仓库
+git revert <commit>
+
+git merge --no-ff [master] <branch># 将branch合并到当前所在分支，解决冲突后，add、commit完成合并。合并后可以删除branch，--no-ff不使用快速向前合并
+git merge --squash <branch>        # 合并分支时把分支中多余的commit合并
+git rebase [-i] master             # 将当前所在分支并入branch，与merge合并方式不同，不要用于已经推送到公共仓库的commit
+git rebase -i commit               # 编辑、合并多个commit
+git rebase --continue              # 解决冲突后在git add之后使用
+git rebase --abort                 # 出错后，终止rebase
+git cherry-pick <commit>           # 把某个commit合并到当前所在分支
+
+远程=========================================================================================================================
+
+git tag
+git tag [-a] '<tag-name>' [-m '<message>'] [<commit>]   # 为（当前/指定）commit添加（带有描述信息的）标签
+git tag -d '<tag-name>'
+
+git remote -v                                           # 列出和其他仓库之间的远程连接，并显示连接的URL
+git remote add <remote> <url>                           # 为远程连接添加别名，remote常用名origin
+git remote remove <remote>
+git remote rename <old-remote> <new-remote>
+
+git clone <repository> [-b <remote-branch>] [<path>]    # 克隆项目（的指定远程分支）到（目标）文件夹，repo为文件目录，HTTP或SSH链接，完成后自动设置origin
+git fetch <remote> <remote-branch>[:<branch>]           # 把远程仓库的指定分支更新到本地仓库（指定分支），推荐fetch到temp分支后自主选择合并
+git pull <remote> <remote-branch>[:<branch>]            # git pull = git fetch + git merge（fetch获取远程分支HEAD，merge合并到当前分支）
+git pull --rebase <remote> <remote-branch>              # 获取远程仓库与本地合并，合并方式rebase不同于merge
+
+git push [-u] <remote> <branch>/<commit>[:<remote-branch>]     # 把本地仓库（指定分支或commit）推送到远程仓库指定分支，-u记忆后可省略参数直接使用git push
+git push <remote> --all/<branch>                        # 推送（指定/所有）分支
+git push <remote> <branch> --force                      # 强制推送，慎用
+git push <remote> <branch> --tags/<tag-name>            # 提交（所有/指定）tag
+
+git push <remote> --delete <tag-name>                   # 删除远程tag，git push <remote> :refs/tags/<tag-name>
+git push <remote> --delete <remote-branch>              # 删除远程分支，git push <remote> :refs/heads/<remote-branch>
+
+git fetch/pull -p                                       # 如果远程的分支被删掉，可使用此命令删除本地对应分支
+
+
+Git为了防止中央仓库的历史被覆盖，会拒绝所有导致非快速向前合并的推送请求。
+所以，如果远程历史和你本地历史已经分叉，你需要将远程分支pull下来，在本地合并后再尝试推送。
+
+fetch + merge同步本地和远程仓库：
+git fetch origin
+git checkout master
+git log --oneline master..origin/master
+git log origin/master
+git merge origin/master
+
+fetch + rebase同步本地和远程仓库：（推荐）
+git checkout master
+git fetch origin master
+git rebase -i origin/master
+# Squash commits, fix up commit messages etc.
+git push origin master
+
+pull + rebase同步本地和远程仓库：
+git checkout master
+git pull --rebase origin
