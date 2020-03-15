@@ -1,7 +1,17 @@
-Workspace      # 工作区
-Index/Stage    # 暂存区
-Repository     # 本地仓库
-Remote         # 远程仓库
+Workspace           # 工作区
+Index/Stage         # 暂存区
+Repository          # 本地仓库
+Remote              # 远程仓库
+
+HEAD                # 当前所在的commit或分支
+FETCH_HEAD          # 远程仓库中fetch到的最新HEAD
+ORIG_HEAD           # HEAD的备份引用，避免损坏
+MERGE_HEAD          # 通过git merge并入当前分支的引用
+CHERRY_PICK_HEAD    # cherry pick 使用的引用
+
+相对引用
+HEAD^n^n            # 可遍历多分支父节点
+HEAD~n              # 只遍历当前分支的父节点）
 
 配置=========================================================================================================================
 
@@ -30,6 +40,7 @@ Host github.com
 
 基本=========================================================================================================================
 
+git gc
 .gitignore                         # 不被git管理的目录或特定文件后缀（.pyc）
 
 git init <directory>
@@ -40,7 +51,7 @@ git add <file.ext>/<*.ext>
 
 git commit -v                      # commit时显示所有diff信息
 git commit [-a] -m '<message>'     # -a可省去git add --all命令，直接提交工作区自上次commit之后的变化
-git commit --amend [--no-edit]     # 提交并覆盖上一次commit，不要用于已经推送到公共仓库的commit
+git commit --amend [--no-edit]     # 提交并覆盖上一次commit，谨慎用于公共仓库（master）分支
 
 状态=========================================================================================================================
 //commit可以是commitID、分支名、HEAD/HEAD^^、tag等引用
@@ -55,22 +66,24 @@ git log [--oneline]                       # 显示commit历史，空格键滚动
 git log -n <limit>
 git log --graph --decorate --oneline      # 显示commit历史，还有一些有用的选项。--graph 绘制图形，--decorate 显示commit分支名和标签
 git log --stat                            # 显示每个commit被更改的文件及增删行数
-git log -p                                # 显示每个commit全部的差异
-git log <file>                            # 查找特定文件的历史
+git log -p                                # 显示每个commit全部的差异，输出具体的删改信息
+git log -- <file>                         # 查找特定文件的历史，--说明是文件
 git log --author="<pattern>"              # 与其他命令参数可组合使用，<pattern>是字符串或正则表达式
 git log --grep="<pattern>"
 git log <since>..<until>                  # since，until两个参数可以是commitID、分支名、HEAD/HEAD^^、tag引用
 git log --oneline master..some-feature    # ..句法，显示在some-feature分支而不在master分支的commit
+git log --pretty=format:"<string>"        # %cn、%h和%cd三种占位符分别代表为antuor、commitID和date
 
 git show <tag-name>/<commit>              # 查看某个commit信息，
 git show <commit>:<file>                  # 查看某个commit中file文件信息
+git shortlog                              # 按作者输出commit信息
 git reflog                                # 查看历史命令，reset --hard作死之后的后悔药
 
 操作=========================================================================================================================
 //commit可以是commitID、分支名、HEAD/HEAD^^、tag等引用
-//①使用git checkout <commit>命令后，仓库将处于分离HEAD状态（不要在detached状态开发）
+//①使用git checkout <commit>命令后，仓库将处于分离HEAD状态（不要在detached状态开发，应该创建一个新的分支）
 //②执行reset --hard & clean -df推倒重来之后，工作目录和缓存区会返回到最后一次commit的状态，git status会认为这是一个干净的工作目录
-//③--hard会改变工作目录，--soft不会改变暂存区和工作目录现有状态，--mixed与不加--mixed相同
+//③git reset将HEAD指向另一个commit，--hard会改变工作目录，--soft不会改变暂存区和工作目录现有状态，--mixed只改变缓存区（与不加--mixed相同）
 
 git branch [-r/-a]                                       # 列出本地仓库（远程仓库/本地+远程）所有分支名称
 git branch -vv                                           # 查看本地分支对应的远程分支
@@ -82,28 +95,30 @@ git branch --set-upstream <branch> <remote-branch>       # 设置已有branch分
 git checkout <branch>
 git checkout -b <new-branch> <exist-branch/commit>       # 基于exist-branch或某个commit创建新的分支并切换
 
-*① git checkout <commit>          # 将某个commit加载到工作目录，所有做改动不会被保存到仓库，git checkout master 切回之前状态
-git checkout <commit> <file>       # 将某个commit中的file文件加载到工作目录并加入到缓存区，git checkout HEAD <file> 切回之前状态
+*① git checkout <commit>          # 将某个commit加载到工作目录和缓存区，所有做改动不会被保存到仓库，git checkout master 切回之前状态
+git checkout <commit> <file>       # 将某个commit中的file文件加载到工作目录和缓存区，git checkout HEAD <file> 切回之前状态
 git checkout HEAD/master <file>    # 放弃对某个文件的修改
 git checkout HEAD/master .         # 放弃当前目录下的修改
 
-git checkout <file>                # 将暂存区的文件恢复到工作目录中，暂存区文件依然存在
-git stash save '<name>'            # 暂时保存变化的文件，可临时切换到其他分支工作，稍后切回使用git pop恢复
+git checkout <file>                # 将暂存区的文件复制到工作目录中，暂存区文件依然存在
+git stash [save '<name>']          # 暂时保存变化的文件，可临时切换到其他分支工作，稍后切回使用git pop恢复
 git stash [list/clear]/[pop/drop stash@'<name>']
 git reset [<file>/<path>]          # 从缓存区移除（全部/指定）文件，但不改变工作目录
 *② git reset --hard               # 清除所有未提交的更改（从缓存区移除文件，并将工作目录重置到更改前的状态）
 *② git clean -df [<path>]         # 移除（path文件夹下）未跟踪的文件及文件夹
 *③ git reset [--mixed] <commit>   # 撤销某次commit到缓存区，但不改变工作目录
-git reset --hard <commit>          # 不要强制用于公共仓库
+git reset --hard <commit>          # 谨慎用于公共仓库（master）分支
 git revert <commit>
 
 git merge --no-ff [master] <branch># 将branch合并到当前所在分支，解决冲突后，add、commit完成合并。合并后可以删除branch，--no-ff不使用快速向前合并
 git merge --squash <branch>        # 合并分支时把分支中多余的commit合并
-git rebase [-i] master             # 将当前所在分支并入branch，与merge合并方式不同，不要用于已经推送到公共仓库的commit
+git rebase [-i] master             # 将当前所在分支并入branch，与merge合并方式不同，谨慎用于公共仓库（master）分支
 git rebase -i commit               # 编辑、合并多个commit
 git rebase --continue              # 解决冲突后在git add之后使用
 git rebase --abort                 # 出错后，终止rebase
-git cherry-pick <commit>           # 把某个commit合并到当前所在分支
+git cherry-pick <commit>           # 复制某个commit提交到当前所在分支
+
+git merge-base <branch> <branch>   # 显示branch共同的base commitID（可用于交互式rebase）
 
 远程=========================================================================================================================
 
